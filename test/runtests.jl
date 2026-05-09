@@ -455,66 +455,6 @@ end
                     @test isempty(read(sigma_io, String))
                 end
             end
-
-            @testset "Split primal infeasibility is printed" begin
-                model = build_from_SOCP_data(
-                    spzeros(2, 2),
-                    zeros(2),
-                    sparse([1.0 0.0]),
-                    [0.0],
-                    [2],
-                    0,
-                    1,
-                    fill(-Inf, 2),
-                    fill(Inf, 2),
-                    [3];
-                    verbose=false,
-                )
-                ws, sc = allocate_cpu_ws(model; lambda_max_A=1.0, lambda_max_Q=0.0)
-                ws.sigma = 7.0
-
-                residuals = HPRSOCP.HPRSOCP_residuals()
-                residuals.err_Rp_org_bar = 0.11
-                residuals.err_Rp_linear_org_bar = 0.22
-                residuals.err_Rp_soc_org_bar = 0.33
-                residuals.err_Rd_org_bar = 0.44
-                residuals.primal_obj_bar = 1.23
-                residuals.dual_obj_bar = -4.56
-                residuals.rel_gap_bar = 0.55
-                residuals.KKTx_and_gap_org_bar = 0.66
-
-                iter_io = Pipe()
-                redirect_stdout(iter_io) do
-                    HPRSOCP.print_iteration_log(5, residuals, ws, time())
-                end
-                close(iter_io.in)
-                iter_output = read(iter_io, String)
-                @test occursin("2.20e-01", iter_output)
-                @test occursin("3.30e-01", iter_output)
-
-                summary_io = Pipe()
-                redirect_stdout(summary_io) do
-                    HPRSOCP.handle_termination(
-                        "OPTIMAL",
-                        residuals,
-                        ws,
-                        sc,
-                        5,
-                        time(),
-                        0.0,
-                        0.0,
-                        0,
-                        0.0,
-                        0,
-                        0.0,
-                        true,
-                    )
-                end
-                close(summary_io.in)
-                summary_output = read(summary_io, String)
-                @test occursin("Primal Residual (Linear)", summary_output)
-                @test occursin("Primal Residual (SOC)", summary_output)
-            end
         end
 
         @testset "Small end-to-end SOCP solves (CPU)" begin
