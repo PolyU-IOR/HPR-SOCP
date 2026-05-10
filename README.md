@@ -174,6 +174,11 @@ println("x2 = ", result.x[2])
 
 ---
 
+
 ## Citation
-The paper is in preparation. Please cite the code repository if you use HPR-SOCP in your research.
+
+Kaihuang Chen, Defeng Sun, and Guojun Zhang, “HPR-SOCP: A GPU-Accelerated Halpern–Peaceman–Rachford Solver for Second-Order Cone Programming,” May 2026.
+
+If you use HPR-SOCP in your research, please cite this repository for now.
+
 # HPR-SOCP
