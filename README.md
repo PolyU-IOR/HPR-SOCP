@@ -5,21 +5,35 @@
 ---
 
 ## SOCP Problem Formulation
-
-<div align="center">
+HPR-SOCP solves convex quadratic second-order cone programs of the following form:
 
 $$
-\begin{array}{ll}
-\underset{x \in \mathbb{R}^n}{\min} & \frac{1}{2}\langle x,Qx \rangle + \langle c, x \rangle \\
-\mathrm{s.t.} & AL \le A_{\mathrm{linear}} x \le AU, \\
-& l \le x_{\mathrm{box}} \le u, \\
-& A_{\mathrm{soc},i} x - b_{\mathrm{soc},i} \in \mathcal{Q}^{m_i}, \quad i = 1, \ldots, p, \\
-& x_{\mathrm{soc},j} \in \mathcal{Q}^{n_j}, \quad j = 1, \ldots, q.
-\end{array}
+\begin{aligned}
+\min_{x=(x_1,x_2)}\quad
+& \frac{1}{2}\langle x,Qx\rangle+\langle c,x\rangle \\
+\mathrm{s.t.}\quad
+& A_1x\in \mathcal K_A,\quad
+  A_2x-b_2\in \mathcal K_{\mathrm{soc}},\\
+& x_1\in\mathcal C,\quad x_2\in\mathcal K_v,
+\end{aligned}
 $$
 
-</div>
+with $Q\succeq 0$, $x_1\in\mathbb R^{n_1}$, $x_2\in\mathbb R^{n_2}$, and $n_1+n_2=n$, where
 
+$$
+\begin{aligned}
+\mathcal K_A
+&:= \\{ y\in\mathbb R^{m_A}\mid l_c\le y\le u_c \\},&
+\mathcal C
+&:= \\{ x_1\in\mathbb R^{n_1}\mid l_x\le x_1\le u_x \\},\\
+\mathcal K_{\mathrm{soc}}
+&:=\mathcal Q^{m_1}\times\cdots\times\mathcal Q^{m_p},&
+\mathcal K_v
+&:=\mathcal Q^{n_{2,1}}\times\cdots\times\mathcal Q^{n_{2,q}},\\
+\mathcal Q^m
+&:= \\{(t,\xi)\in\mathbb R\times\mathbb R^{m-1}\mid \|\xi\|_2\le t\\}.&
+\end{aligned}
+$$
 
 
 # Getting Started
