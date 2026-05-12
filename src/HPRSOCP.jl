@@ -25,7 +25,7 @@ include("MOI_wrapper.jl")
 
 export Optimizer
 export HPRSOCP_parameters, HPRSOCP_results
-export build_from_mps, build_from_QAbc, build_from_cbf, build_from_SOCP_data
+export build_from_cbf, build_from_SOCP_data
 export optimize
 
 end

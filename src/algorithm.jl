@@ -83,7 +83,7 @@ function _compute_primal_residual_components(
     end
 
     denom = 1.0 + max(sc.norm_b_org, unified_absmax(ws.Ax))
-    linear_m = ws.number_eq + ws.number_ineq
+    linear_m = ws.number_linear_con
 
     err_total = unified_absmax(ws.Rp) / denom
     err_linear = linear_m > 0 ? unified_absmax_range(ws.Rp, 1, linear_m) / denom : 0.0
@@ -1491,8 +1491,7 @@ function allocate_workspace(
     ws.AU = qp.AU
     ws.SOC_con_idx = qp.SOC_con_idx
     ws.SOC_var_idx = qp.SOC_var_idx
-    ws.number_eq = qp.number_eq
-    ws.number_ineq = qp.number_ineq
+    ws.number_linear_con = qp.number_linear_con
     ws.number_lu_x = qp.number_lu_x
     ws.number_SOC_con = length(qp.SOC_con_idx) - 1
     ws.number_SOC_var = length(qp.SOC_var_idx) - 1
@@ -1839,7 +1838,7 @@ function print_problem_info(qp::HPRSOCP_QP_info, ws::HPRSOCP_workspace, params::
         println("A Matrix: No constraints (unconstrained)")
     end
 
-    println("Constraint Partition: linear constraints = $(qp.number_eq + qp.number_ineq), SOC blocks = $(length(qp.SOC_con_idx) - 1)")
+    println("Constraint Partition: linear constraints = $(qp.number_linear_con), SOC blocks = $(length(qp.SOC_con_idx) - 1)")
     println("Variable Partition: boxed = $(qp.number_lu_x), SOC blocks = $(length(qp.SOC_var_idx) - 1)")
 
     if length(qp.SOC_con_idx) > 1
@@ -2336,8 +2335,7 @@ function transfer_to_gpu(model::QP_info_cpu, params::HPRSOCP_parameters)
         CuVector(model.AL),
         CuVector(model.AU),
         CuVector(model.SOC_con_idx),
-        model.number_eq,
-        model.number_ineq,
+        model.number_linear_con,
         CuVector(model.l),
         CuVector(model.u),
         CuVector(model.SOC_var_idx),
@@ -2518,7 +2516,7 @@ This is the main entry point for solving QP problems. It handles:
 2. Calls solve() which does scaling, GPU transfer, and optimization
 
 # Arguments
-- `model::QP_info_cpu`: QP model built from build_from_mps(), build_from_QAbc(), etc.
+- `model::QP_info_cpu`: SOCP model built from build_from_cbf(), build_from_SOCP_data(), etc.
 - `params::HPRSOCP_parameters`: Solver parameters
 
 # Returns
@@ -2535,7 +2533,7 @@ params.warm_up = true
 result = optimize(model, params)
 ```
 
-See also: [`build_from_mps`](@ref), [`build_from_QAbc`](@ref)
+See also: [`build_from_cbf`](@ref), [`build_from_SOCP_data`](@ref)
 """
 function optimize(model::QP_info_cpu, params::HPRSOCP_parameters)
     # Handle warmup if requested

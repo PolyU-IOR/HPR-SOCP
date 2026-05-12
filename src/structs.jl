@@ -137,8 +137,7 @@ mutable struct QP_info_cpu <: HPRSOCP_QP_info
     AL::Vector{Float64}
     AU::Vector{Float64}
     SOC_con_idx::Vector{Int}
-    number_eq::Int
-    number_ineq::Int
+    number_linear_con::Int
     l::Vector{Float64}
     u::Vector{Float64}
     SOC_var_idx::Vector{Int}
@@ -158,8 +157,7 @@ mutable struct QP_info_gpu <: HPRSOCP_QP_info
     AL::CuVector{Float64}
     AU::CuVector{Float64}
     SOC_con_idx::CuVector{Int}
-    number_eq::Int
-    number_ineq::Int
+    number_linear_con::Int
     l::CuVector{Float64}
     u::CuVector{Float64}
     SOC_var_idx::CuVector{Int}
@@ -472,8 +470,7 @@ mutable struct HPRSOCP_workspace_gpu <: HPRSOCP_workspace
     AU::CuVector{Float64}
     SOC_con_idx::CuVector{Int}
     SOC_var_idx::CuVector{Int}
-    number_eq::Int
-    number_ineq::Int
+    number_linear_con::Int
     number_lu_x::Int
     number_SOC_con::Int
     number_SOC_var::Int
@@ -549,8 +546,7 @@ mutable struct HPRSOCP_workspace_cpu <: HPRSOCP_workspace
     AU::Vector{Float64}
     SOC_con_idx::Vector{Int}
     SOC_var_idx::Vector{Int}
-    number_eq::Int
-    number_ineq::Int
+    number_linear_con::Int
     number_lu_x::Int
     number_SOC_con::Int
     number_SOC_var::Int

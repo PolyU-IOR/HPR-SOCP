@@ -5,6 +5,7 @@ using LinearAlgebra
 using HDF5
 using Dates
 using JuMP
+import MathOptInterface as MOI
 
 # Test Configuration:
 # - All tests are configured to ensure convergence (OPTIMAL status)
@@ -36,7 +37,6 @@ function make_soc_scaling_test_qp(A::SparseMatrixCSC{Float64,Int64}, c::Vector{F
         AU,
         [1, m + 1],
         0,
-        0,
         l,
         u,
         [n + 1],
@@ -56,9 +56,20 @@ function make_soc_scaling_params(; use_gpu::Bool, bc::Bool, pock::Bool)
     return params
 end
 
+function make_box_socp_model(n::Int=4;
+    c::Vector{Float64}=ones(n),
+    l::Vector{Float64}=zeros(n),
+    u::Vector{Float64}=ones(n),
+)
+    Q = spzeros(n, n)
+    A = spzeros(0, n)
+    rhs = Float64[]
+    return build_from_SOCP_data(Q, c, A, rhs, [1], 0, 0, l, u, [n + 1]; verbose=false)
+end
+
 @testset "HPRSOCP.jl Tests" begin
     @testset "GPU scaling implementation" begin
-        utils_src = read(joinpath(dirname(pathof(HPRSOCP)), "utils.jl"), String)
+        utils_src = read(joinpath(dirname(pathof(HPRSOCP)), "utils", "scaling.jl"), String)
         algorithm_src = read(joinpath(dirname(pathof(HPRSOCP)), "algorithm.jl"), String)
 
         @test occursin("function compute_hat_s_b(qp::QP_info_gpu; norm_type::Symbol=:l2)", utils_src)
@@ -107,43 +118,6 @@ end
             sc_gpu = HPRSOCP.scaling!(qp_gpu, gpu_params)
 
         end
-
-        
-        @testset "Empty (zero) Q matrix accepted" begin
-            # Test that build_from_QAbc accepts empty Q matrix (all zeros)
-            n, m = 5, 3
-            Q_empty = zeros(n, n)  # Empty Q matrix - LP problem
-            c = ones(n)
-            A = sparse(ones(m, n))
-            AL = zeros(m)
-            AU = fill(n/2, m)
-            l = zeros(n)
-            u = ones(n)
-            
-            # Should accept empty Q and convert to sparse
-            model = build_from_QAbc(Q_empty, c, A, AL, AU, l, u; verbose=false)
-            @test model !== nothing
-            @test model.Q isa SparseMatrixCSC
-            @test nnz(model.Q) == 0  # Should have no nonzeros
-        end
-        
-        @testset "Mixed sparse and dense matrices" begin
-            # Test mixing sparse Q with dense A
-            n, m = 4, 2
-            Q_sparse = sparse(Matrix{Float64}(I, n, n))
-            c = ones(n)
-            A_dense = ones(m, n)
-            AL = zeros(m)
-            AU = ones(m) * 2
-            l = zeros(n)
-            u = ones(n)
-            
-            model = build_from_QAbc(Q_sparse, c, A_dense, AL, AU, l, u; verbose=false)
-            @test model !== nothing
-            @test model.Q isa SparseMatrixCSC
-            @test model.A isa SparseMatrixCSC
-        end
-
         @testset "SOCP direct builder metadata" begin
             Q = spzeros(4, 4)
             c = zeros(4)
@@ -163,8 +137,7 @@ end
 
             model = build_from_SOCP_data(Q, c, A, rhs, SOC_con_idx, number_eq, number_ineq, l, u, SOC_var_idx; verbose=false)
 
-            @test model.number_eq == 1
-            @test model.number_ineq == 1
+            @test model.number_linear_con == 2
             @test model.number_lu_x == 1
             @test model.SOC_con_idx == [3, 5]
             @test model.SOC_var_idx == [2, 5]
@@ -200,6 +173,97 @@ end
                         @test SOC_var_idx == [4]
                     end
                 end
+        end
+
+        @testset "MOI wrapper SOCP conversion" begin
+            @testset "empty SOC rows for linear QP models" begin
+                cache = MOI.Utilities.Model{Float64}()
+                variables = MOI.add_variables(cache, 2)
+                MOI.add_constraint(cache, variables[1], MOI.Interval(0.0, 1.0))
+                affine_function = MOI.ScalarAffineFunction(
+                    [
+                        MOI.ScalarAffineTerm(1.0, variables[1]),
+                        MOI.ScalarAffineTerm(2.0, variables[2]),
+                    ],
+                    3.0,
+                )
+                MOI.add_constraint(cache, affine_function, MOI.Interval(4.0, 7.0))
+
+                optimizer = HPRSOCP.Optimizer()
+                model = HPRSOCP._moi_cache_to_socp_model(optimizer, cache)
+
+                @test model.number_linear_con == 2
+                @test model.SOC_con_idx == [3]
+                @test model.SOC_var_idx == [3]
+                @test model.AL ≈ [1.0, -4.0]
+                @test all(isinf, model.AU)
+                @test Matrix(model.A) ≈ [1.0 2.0; -1.0 -2.0]
+                @test model.l ≈ [0.0, -Inf]
+                @test model.u ≈ [1.0, Inf]
+            end
+
+            @testset "affine and variable SOC blocks" begin
+                cache = MOI.Utilities.Model{Float64}()
+                variables = MOI.add_variables(cache, 5)
+                MOI.set(cache, MOI.ObjectiveFunction{MOI.VariableIndex}(), variables[2])
+                MOI.add_constraint(
+                    cache,
+                    MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, variables[1])], 1.0),
+                    MOI.EqualTo(2.0),
+                )
+                vector_function = MOI.VectorAffineFunction(
+                    [
+                        MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, variables[2])),
+                        MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(2.0, variables[3])),
+                        MOI.VectorAffineTerm(3, MOI.ScalarAffineTerm(-1.0, variables[1])),
+                    ],
+                    [1.0, -2.0, 0.5],
+                )
+                MOI.add_constraint(cache, vector_function, MOI.SecondOrderCone(3))
+                MOI.add_constraint(cache, MOI.VectorOfVariables(variables[[2, 4, 5]]), MOI.SecondOrderCone(3))
+
+                optimizer = HPRSOCP.Optimizer()
+                model = HPRSOCP._moi_cache_to_socp_model(optimizer, cache)
+
+                @test optimizer.solver_to_variable == [1, 3, 2, 4, 5]
+                @test optimizer.variable_to_solver == [1, 3, 2, 4, 5]
+                @test model.c ≈ [0.0, 0.0, 1.0, 0.0, 0.0]
+                @test model.number_linear_con == 1
+                @test model.SOC_con_idx == [2, 5]
+                @test model.SOC_var_idx == [3, 6]
+                @test model.number_lu_x == 2
+                @test model.soc_rhs ≈ [-1.0, 2.0, -0.5]
+                @test Matrix(model.A) ≈ [
+                    1.0 0.0 0.0 0.0 0.0;
+                    0.0 0.0 1.0 0.0 0.0;
+                    0.0 2.0 0.0 0.0 0.0;
+                    -1.0 0.0 0.0 0.0 0.0;
+                ]
+            end
+
+            @testset "JuMP SOC solve with reordered variables" begin
+                jump_model = Model(HPRSOCP.Optimizer)
+                set_silent(jump_model)
+                set_optimizer_attribute(jump_model, "use_gpu", false)
+                set_optimizer_attribute(jump_model, "warm_up", false)
+                set_optimizer_attribute(jump_model, "max_iter", 5000)
+                set_optimizer_attribute(jump_model, "stoptol", 1e-5)
+
+                @variable(jump_model, x)
+                @variable(jump_model, t)
+                @variable(jump_model, y)
+                @constraint(jump_model, x == 5.0)
+                @constraint(jump_model, y == 1.0)
+                @constraint(jump_model, [t, y] in SecondOrderCone())
+                @objective(jump_model, Min, t)
+
+                optimize!(jump_model)
+
+                @test termination_status(jump_model) == MOI.OPTIMAL
+                @test value(x) ≈ 5.0 atol = 1e-3
+                @test value(t) ≈ 1.0 atol = 1e-3
+                @test value(y) ≈ 1.0 atol = 1e-3
+            end
         end
 
         @testset "SOC CPU projection and residual helpers" begin
@@ -339,7 +403,7 @@ end
                     residuals = HPRSOCP.HPRSOCP_residuals()
                     HPRSOCP.compute_residuals!(ws, model, sc, residuals, params, 1)
 
-                    linear_m = model.number_eq + model.number_ineq
+                    linear_m = model.number_linear_con
                     denom = 1.0 + max(sc.norm_b_org, HPRSOCP.unified_norm(ws.Ax, Inf))
                     expected_linear = HPRSOCP.unified_norm(ws.Rp[1:linear_m], Inf) / denom
                     expected_soc = HPRSOCP.unified_norm(ws.Rp[(linear_m + 1):end], Inf) / denom
@@ -407,16 +471,7 @@ end
                 end
 
                 @testset "verbose=false suppresses restart chatter" begin
-                    model = build_from_QAbc(
-                        spzeros(1, 1),
-                        [0.0],
-                        spzeros(0, 1),
-                        Float64[],
-                        Float64[],
-                        [-1.0],
-                        [1.0];
-                        verbose=false,
-                    )
+                    model = make_box_socp_model(1; c=[0.0], l=[-1.0], u=[1.0])
 
                     ws, _ = allocate_cpu_ws(model; lambda_max_A=0.0, lambda_max_Q=0.0)
                     ws.x_bar .= [1.0]
@@ -762,85 +817,10 @@ end
         end
     end
     
-    @testset "QP from matrices (QAbc)" begin
-        # Test solving QP problems with dense and empty Q matrices
-        @testset "Solve with dense Q matrix" begin
-            n, m = 10, 5
-            # Create a small dense QP
-            Q_dense = Matrix{Float64}(I, n, n) * 2.0
-            c = -ones(n)
-            A_dense = ones(m, n)
-            AL = zeros(m)
-            AU = fill(n/2, m)
-            l = zeros(n)
-            u = ones(n)
-            
-            model = build_from_QAbc(Q_dense, c, A_dense, AL, AU, l, u; verbose=false)
-            
-            params = HPRSOCP_parameters()
-            params.max_iter = 10000
-            params.stoptol = 1e-6
-            params.time_limit = 120.0
-            params.warm_up = false
-            params.verbose = false
-            params.print_frequency = -1
-            
-            result = optimize(model, params)
-            
-            @test result !== nothing
-            @test result.status == "OPTIMAL"
-            @test result.residuals < 1e-6
-            @test length(result.x) == n
-            
-            println("Dense Q matrix solve: Status=$(result.status), Objective=$(result.primal_obj)")
-        end
-        
-        @testset "Solve with empty (zero) Q matrix - LP" begin
-            # This is essentially an LP problem (Q = 0)
-            n, m = 8, 4
-            Q_empty = zeros(n, n)  # Empty Q - linear programming
-            c = -ones(n)  # Minimize -sum(x), equivalent to maximize sum(x)
-            A = ones(m, n)
-            AL = fill(2.0, m)
-            AU = fill(5.0, m)
-            l = zeros(n)
-            u = ones(n)
-            
-            model = build_from_QAbc(Q_empty, c, A, AL, AU, l, u; verbose=false)
-            
-            params = HPRSOCP_parameters()
-            params.max_iter = 10000
-            params.stoptol = 1e-6
-            params.time_limit = 120.0
-            params.warm_up = false
-            params.verbose = false
-            params.print_frequency = -1
-            
-            result = optimize(model, params)
-            
-            @test result !== nothing
-            @test result.status == "OPTIMAL"
-            @test result.residuals < 1e-6
-            @test length(result.x) == n
-            
-            println("Empty Q matrix (LP) solve: Status=$(result.status), Objective=$(result.primal_obj)")
-        end
-    end
-    
     @testset "Parameter validation" begin
         # Test that solver handles different parameter configurations
         @testset "Parameter settings" begin
-            # Create a tiny problem
-            n, m = 5, 2
-            Q = sparse(Matrix{Float64}(I, n, n))
-            c = ones(n)
-            A = sparse(ones(m, n))
-            lcon = zeros(m)
-            ucon = fill(n/2, m)
-            lvar = zeros(n)
-            uvar = ones(n)
-            
-            model = build_from_QAbc(Q, c, A, lcon, ucon, lvar, uvar; verbose=false)
+            model = make_box_socp_model(5)
             
             # Test with different tolerances
             for tol in [1e-3, 1e-5]
@@ -864,16 +844,7 @@ end
     @testset "Result structure" begin
         # Test that result structure contains expected fields
         @testset "Result fields" begin
-            n, m = 4, 2
-            Q = sparse(Matrix{Float64}(I, n, n))
-            c = ones(n)
-            A = sparse(ones(m, n))
-            lcon = zeros(m)
-            ucon = ones(m) * 2
-            lvar = zeros(n)
-            uvar = ones(n)
-            
-            model = build_from_QAbc(Q, c, A, lcon, ucon, lvar, uvar; verbose=false)
+            model = make_box_socp_model(4)
             
             params = HPRSOCP_parameters()
             params.max_iter = 50000
@@ -1047,17 +1018,7 @@ end
         end
         
         @testset "CPU mode works correctly" begin
-            # Create a simple test problem
-            n, m = 10, 5
-            Q = sparse(1.0I, n, n)
-            c = ones(n)
-            A = sparse(rand(m, n))
-            AL = -ones(m)
-            AU = ones(m)
-            l = zeros(n)
-            u = 10 * ones(n)
-            
-            model = build_from_QAbc(Q, c, A, AL, AU, l, u; verbose=false)
+            model = make_box_socp_model(10; u=10 * ones(10))
             
             # Test with explicit CPU mode
             params = HPRSOCP_parameters()
@@ -1072,18 +1033,8 @@ end
         
         @testset "GPU parameter validation" begin
             using CUDA
-            
-            # Create a simple test problem
-            n, m = 10, 5
-            Q = sparse(1.0I, n, n)
-            c = ones(n)
-            A = sparse(rand(m, n))
-            AL = -ones(m)
-            AU = ones(m)
-            l = zeros(n)
-            u = 10 * ones(n)
-            
-            model = build_from_QAbc(Q, c, A, AL, AU, l, u; verbose=false)
+
+            model = make_box_socp_model(10; u=10 * ones(10))
             
             # Test with invalid GPU device number
             params = HPRSOCP_parameters()
@@ -1106,18 +1057,8 @@ end
         
         @testset "Default GPU behavior" begin
             using CUDA
-            
-            # Create a simple test problem
-            n, m = 10, 5
-            Q = sparse(1.0I, n, n)
-            c = ones(n)
-            A = sparse(rand(m, n))
-            AL = -ones(m)
-            AU = ones(m)
-            l = zeros(n)
-            u = 10 * ones(n)
-            
-            model = build_from_QAbc(Q, c, A, AL, AU, l, u; verbose=false)
+
+            model = make_box_socp_model(10; u=10 * ones(10))
             
             # Test default parameters (should use GPU if available)
             params = HPRSOCP_parameters()
@@ -1136,17 +1077,7 @@ end
         end
         
         @testset "Parameter printing shows correct device" begin
-            # Create a simple test problem
-            n, m = 5, 3
-            Q = sparse(1.0I, n, n)
-            c = ones(n)
-            A = sparse(rand(m, n))
-            AL = -ones(m)
-            AU = ones(m)
-            l = zeros(n)
-            u = ones(n)
-            
-            model = build_from_QAbc(Q, c, A, AL, AU, l, u; verbose=false)
+            model = make_box_socp_model(5)
             
             # Test with CPU mode - just verify it runs without error
             # (actual output checking would require more complex test setup)

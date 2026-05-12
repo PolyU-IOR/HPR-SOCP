@@ -8,6 +8,6 @@ params.warm_up = false
 params.verbose = true
 params.use_gpu = true
 
-file = "data/model.cbf"
+file = "/home/chenkaihuang/Data/QP_data/CBLIB/SOC/sambal.cbf"
 model = HPRSOCP.build_from_cbf(file)
 result = HPRSOCP.optimize(model, params)

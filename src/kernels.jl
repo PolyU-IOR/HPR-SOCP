@@ -5687,7 +5687,7 @@ function unified_update_y_gpu!(ws::HPRSOCP_workspace_gpu, Halpern_fact1::Float64
         Amap!(ws.tempv, ws.Ax, ws.A, ws.spmv_A)
     end
 
-    linear_m = ws.number_eq + ws.number_ineq
+    linear_m = ws.number_linear_con
     if linear_m > 0
         threads_A, blocks_A = gpu_launch_config(linear_m)
         if threads_A > 0
@@ -5710,7 +5710,7 @@ function unified_update_y_gpu!(ws::HPRSOCP_workspace_gpu, Halpern_fact1::Float64
 
     if ws.number_SOC_con > 0
         fast_paths = ws.soc_con_fast_paths
-        soc_con_first = Int32(ws.number_eq + ws.number_ineq + 1)
+        soc_con_first = Int32(ws.number_linear_con + 1)
         if fast_paths.small_count > 0
             launch_unified_update_y_SOC_small!(
                 ws, soc_con_first, fast_paths.small_starts, fast_paths.small_sizes, fast_paths.small_count,
@@ -5863,7 +5863,7 @@ function unified_update_y_noQ_soc_gpu!(ws::HPRSOCP_workspace_gpu, Halpern_fact1:
         Amap!(ws.x_hat, ws.Ax, ws.A, ws.spmv_A)
     end
 
-    linear_m = ws.number_eq + ws.number_ineq
+    linear_m = ws.number_linear_con
     if linear_m > 0
         threads_A, blocks_A = gpu_launch_config(linear_m)
         if threads_A > 0
@@ -5885,7 +5885,7 @@ function unified_update_y_noQ_soc_gpu!(ws::HPRSOCP_workspace_gpu, Halpern_fact1:
 
     if ws.number_SOC_con > 0
         fast_paths = ws.soc_con_fast_paths
-        soc_con_first = Int32(ws.number_eq + ws.number_ineq + 1)
+        soc_con_first = Int32(ws.number_linear_con + 1)
         if fast_paths.small_count > 0
             if !ws.to_check && use_soc_con_cooperative_size3(fast_paths)
                 launch_unified_update_y_SOC_size3_cooperative!(
@@ -7836,7 +7836,7 @@ function unified_update_y_noQ_cpu!(ws::HPRSOCP_workspace_cpu,
     Ax = ws.Ax
     AL = ws.AL
     AU = ws.AU
-    linear_m = ws.number_eq + ws.number_ineq
+    linear_m = ws.number_linear_con
 
     if ws.to_check
         @simd for i in 1:linear_m
@@ -8000,7 +8000,7 @@ function update_y_cpu!(ws::HPRSOCP_workspace_cpu,
     last_y = ws.last_y
     dy = ws.dy
     s = ws.s
-    linear_m = ws.number_eq + ws.number_ineq
+    linear_m = ws.number_linear_con
 
     if ws.to_check
         @simd for i in 1:linear_m
