@@ -95,7 +95,7 @@ end
 MOI.get(::Optimizer, ::MOI.SolverName) = "HPRSOCP"
 
 function MOI.get(::Optimizer, ::MOI.SolverVersion)
-    return "0.1.1"  # Update this to match your package version
+    return "0.1.0"  # Update this to match your package version
 end
 
 # HPRSOCP does not support incremental interface - requires copy_to
