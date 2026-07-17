@@ -68,6 +68,22 @@ function make_box_socp_model(n::Int=4;
 end
 
 @testset "HPRSOCP.jl Tests" begin
+    @testset "cuSPARSE handle compatibility" begin
+        spmv_types = (
+            HPRSOCP.CUSPARSE_spmv_A,
+            HPRSOCP.CUSPARSE_spmv_AT,
+            HPRSOCP.CUSPARSE_spmv_Q,
+        )
+        handle_types = Any[HPRSOCP.CUDA.CUSPARSE.cusparseHandle_t, Ref{Nothing}]
+        if HPRSOCP.CUDA.functional()
+            push!(handle_types, typeof(HPRSOCP.CUDA.CUSPARSE.handle()))
+        end
+        for spmv_type in spmv_types, handle_type in handle_types
+            @test fieldtype(spmv_type{handle_type}, 1) === handle_type
+            @test isconcretetype(spmv_type{handle_type})
+        end
+    end
+
     @testset "GPU scaling implementation" begin
         utils_src = read(joinpath(dirname(pathof(HPRSOCP)), "utils", "scaling.jl"), String)
         algorithm_src = read(joinpath(dirname(pathof(HPRSOCP)), "algorithm.jl"), String)

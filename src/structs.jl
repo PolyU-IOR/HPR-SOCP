@@ -3,8 +3,12 @@
 # ============================================================================
 
 # CUSPARSE SpMV structure for A matrix operations
-mutable struct CUSPARSE_spmv_A
-    handle::CUDA.CUSPARSE.cusparseHandle_t
+# Keep the handle type generic: CUDA.jl historically returned the raw
+# `cusparseHandle_t`, while newer releases return a managed `Handle` wrapper.
+# Parameterizing the container preserves type stability without depending on
+# either version-specific representation.
+mutable struct CUSPARSE_spmv_A{H}
+    handle::H
     operator::Char
     alpha::Ref{Float64}
     desc_A::CUDA.CUSPARSE.CuSparseMatrixDescriptor
@@ -20,8 +24,8 @@ mutable struct CUSPARSE_spmv_A
 end
 
 # CUSPARSE SpMV structure for AT (transpose of A) matrix operations
-mutable struct CUSPARSE_spmv_AT
-    handle::CUDA.CUSPARSE.cusparseHandle_t
+mutable struct CUSPARSE_spmv_AT{H}
+    handle::H
     operator::Char
     alpha::Ref{Float64}
     desc_AT::CUDA.CUSPARSE.CuSparseMatrixDescriptor
@@ -36,8 +40,8 @@ mutable struct CUSPARSE_spmv_AT
 end
 
 # CUSPARSE SpMV structure for Q matrix operations (when Q is a sparse matrix)
-mutable struct CUSPARSE_spmv_Q
-    handle::CUDA.CUSPARSE.cusparseHandle_t
+mutable struct CUSPARSE_spmv_Q{H}
+    handle::H
     operator::Char
     alpha::Ref{Float64}
     desc_Q::CUDA.CUSPARSE.CuSparseMatrixDescriptor
