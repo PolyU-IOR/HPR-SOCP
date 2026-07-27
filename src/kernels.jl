@@ -323,7 +323,7 @@ end
 #
 # Key Design Principles:
 # - Each kernel is optimized for GPU parallelism with minimal thread divergence
-# - Kernels use CUDA.@fastmath for performance where numerical stability permits
+# - Kernels use for performance where numerical stability permits
 # - Full vs Partial kernel variants control which intermediate values are stored
 # - Custom vs cuSPARSE SpMV modes allow flexible performance tuning
 # - Val{} type parameters enable compile-time specialization without runtime overhead
@@ -376,7 +376,7 @@ end
 # Note: tempv computation is separated into compute_tempv_unified_kernel! for clarity
 #
 # Full version: computes all intermediate values
-CUDA.@fastmath @inline function unified_update_zxw1_kernel_full!(::Val{UseCustom}, ::Val{IsDiag},
+@inline function unified_update_zxw1_kernel_full!(::Val{UseCustom}, ::Val{IsDiag},
     dx::CuDeviceVector{Float64},
     rowPtrQ::CuDeviceVector{Int32}, colValQ::CuDeviceVector{Int32}, nzValQ::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64}, w::CuDeviceVector{Float64},
@@ -437,7 +437,7 @@ CUDA.@fastmath @inline function unified_update_zxw1_kernel_full!(::Val{UseCustom
 end
 
 # Partial version: skips intermediate writes
-CUDA.@fastmath @inline function unified_update_zxw1_kernel_partial!(::Val{UseCustom}, ::Val{IsDiag},
+@inline function unified_update_zxw1_kernel_partial!(::Val{UseCustom}, ::Val{IsDiag},
     dx::CuDeviceVector{Float64},
     rowPtrQ::CuDeviceVector{Int32}, colValQ::CuDeviceVector{Int32}, nzValQ::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64}, w::CuDeviceVector{Float64},
@@ -493,7 +493,7 @@ CUDA.@fastmath @inline function unified_update_zxw1_kernel_partial!(::Val{UseCus
     return
 end
 
-CUDA.@fastmath @inline function _write_soc_var_projection!(::Val{IsDiag},
+@inline function _write_soc_var_projection!(::Val{IsDiag},
     idx::Int,
     projected::Float64,
     z_val::Float64,
@@ -527,7 +527,7 @@ CUDA.@fastmath @inline function _write_soc_var_projection!(::Val{IsDiag},
     return
 end
 
-CUDA.@fastmath @inline function _write_soc_var_projection_partial!(::Val{IsDiag},
+@inline function _write_soc_var_projection_partial!(::Val{IsDiag},
     idx::Int,
     projected::Float64,
     w_bar::CuDeviceVector{Float64},
@@ -554,7 +554,7 @@ CUDA.@fastmath @inline function _write_soc_var_projection_partial!(::Val{IsDiag}
     return
 end
 
-CUDA.@fastmath @inline function _write_soc_var_projection_noQ!(
+@inline function _write_soc_var_projection_noQ!(
     idx::Int,
     projected::Float64,
     z_val::Float64,
@@ -577,7 +577,7 @@ CUDA.@fastmath @inline function _write_soc_var_projection_noQ!(
     return
 end
 
-CUDA.@fastmath @inline function _write_soc_var_projection_noQ_partial!(
+@inline function _write_soc_var_projection_noQ_partial!(
     idx::Int,
     projected::Float64,
     x_hat::CuDeviceVector{Float64},
@@ -593,7 +593,7 @@ CUDA.@fastmath @inline function _write_soc_var_projection_noQ_partial!(
     return
 end
 
-CUDA.@fastmath @inline function _soc_raw_update(::Val{UseQ},
+@inline function _soc_raw_update(::Val{UseQ},
     idx::Int,
     x::CuDeviceVector{Float64},
     Qw::CuDeviceVector{Float64},
@@ -604,7 +604,7 @@ CUDA.@fastmath @inline function _soc_raw_update(::Val{UseQ},
     return x[idx] + sigma * (q_term + ATy[idx] - c[idx])
 end
 
-CUDA.@fastmath @inline function _soc_raw_update_noQ(
+@inline function _soc_raw_update_noQ(
     idx::Int,
     x::CuDeviceVector{Float64},
     ATy::CuDeviceVector{Float64},
@@ -613,7 +613,7 @@ CUDA.@fastmath @inline function _soc_raw_update_noQ(
     return x[idx] + sigma * (ATy[idx] - c[idx])
 end
 
-CUDA.@fastmath @inline function _soc_raw_update_noQ_custom(
+@inline function _soc_raw_update_noQ_custom(
     idx::Int,
     x::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32},
@@ -631,7 +631,7 @@ CUDA.@fastmath @inline function _soc_raw_update_noQ_custom(
     return x[idx] + sigma * (acc - c[idx])
 end
 
-CUDA.@fastmath @inline function unified_update_zxw1_SOC_size3_kernel!(::Val{UseQ}, ::Val{IsDiag},
+@inline function unified_update_zxw1_SOC_size3_kernel!(::Val{UseQ}, ::Val{IsDiag},
     dx::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64},
     w::CuDeviceVector{Float64},
@@ -715,7 +715,7 @@ CUDA.@fastmath @inline function unified_update_zxw1_SOC_size3_kernel!(::Val{UseQ
     return
 end
 
-CUDA.@fastmath @inline function unified_update_zxw1_SOC_exact_kernel!(::Val{ConeSize}, ::Val{UseQ}, ::Val{IsDiag},
+@inline function unified_update_zxw1_SOC_exact_kernel!(::Val{ConeSize}, ::Val{UseQ}, ::Val{IsDiag},
     dx::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64},
     w::CuDeviceVector{Float64},
@@ -946,7 +946,7 @@ CUDA.@fastmath @inline function unified_update_zxw1_SOC_exact_kernel!(::Val{Cone
     return
 end
 
-CUDA.@fastmath @inline function unified_update_zxw1_SOC_generic_kernel!(::Val{UseQ}, ::Val{IsDiag},
+@inline function unified_update_zxw1_SOC_generic_kernel!(::Val{UseQ}, ::Val{IsDiag},
     dx::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64},
     w::CuDeviceVector{Float64},
@@ -1035,7 +1035,7 @@ end
 # Large SOC cones use block-cooperative raw-value generation and writeback,
 # but keep the norm accumulation in the generic kernel's serial order so the
 # long-run solve trajectory stays unchanged.
-CUDA.@fastmath function unified_update_zxw1_SOC_large_kernel!(::Val{UseQ}, ::Val{IsDiag},
+function unified_update_zxw1_SOC_large_kernel!(::Val{UseQ}, ::Val{IsDiag},
     dx::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64},
     w::CuDeviceVector{Float64},
@@ -1158,7 +1158,7 @@ CUDA.@fastmath function unified_update_zxw1_SOC_large_kernel!(::Val{UseQ}, ::Val
     return
 end
 
-CUDA.@fastmath function unified_update_zxw1_SOC_large_kernel_partial!(::Val{UseQ}, ::Val{IsDiag},
+function unified_update_zxw1_SOC_large_kernel_partial!(::Val{UseQ}, ::Val{IsDiag},
     w_bar::CuDeviceVector{Float64},
     w::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
@@ -1404,7 +1404,7 @@ end
     end
 end
 
-CUDA.@fastmath @inline function unified_update_zxw1_SOC_small_kernel!(::Val{UseQ}, ::Val{IsDiag},
+@inline function unified_update_zxw1_SOC_small_kernel!(::Val{UseQ}, ::Val{IsDiag},
     dx::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64},
     w::CuDeviceVector{Float64},
@@ -1490,7 +1490,7 @@ CUDA.@fastmath @inline function unified_update_zxw1_SOC_small_kernel!(::Val{UseQ
     return
 end
 
-CUDA.@fastmath @inline function unified_update_zxw1_SOC_small_kernel_partial!(::Val{UseQ}, ::Val{IsDiag},
+@inline function unified_update_zxw1_SOC_small_kernel_partial!(::Val{UseQ}, ::Val{IsDiag},
     w_bar::CuDeviceVector{Float64},
     w::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
@@ -1649,7 +1649,7 @@ end
     end
 end
 
-CUDA.@fastmath @inline function unified_update_zx_noQ_SOC_size3_kernel!(
+@inline function unified_update_zx_noQ_SOC_size3_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -1705,7 +1705,7 @@ CUDA.@fastmath @inline function unified_update_zx_noQ_SOC_size3_kernel!(
     return
 end
 
-CUDA.@fastmath @inline function unified_update_zx_noQ_SOC_generic_kernel!(
+@inline function unified_update_zx_noQ_SOC_generic_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -1772,7 +1772,7 @@ CUDA.@fastmath @inline function unified_update_zx_noQ_SOC_generic_kernel!(
     return
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_large_kernel!(
+function unified_update_zx_noQ_SOC_large_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -1884,7 +1884,7 @@ CUDA.@fastmath function unified_update_zx_noQ_SOC_large_kernel!(
     return
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_large_kernel_partial!(::Val{UseCustom},
+function unified_update_zx_noQ_SOC_large_kernel_partial!(::Val{UseCustom},
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -2020,7 +2020,7 @@ CUDA.@fastmath function unified_update_zx_noQ_SOC_large_kernel_partial!(::Val{Us
     return
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_large_kernel_partial_legacy!(
+function unified_update_zx_noQ_SOC_large_kernel_partial_legacy!(
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -2132,7 +2132,7 @@ CUDA.@fastmath function unified_update_zx_noQ_SOC_large_kernel_partial_legacy!(
     return
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_kernel!(
+function unified_update_zx_noQ_SOC_huge_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -2252,7 +2252,7 @@ CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_kernel!(
     return
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_kernel_partial!(
+function unified_update_zx_noQ_SOC_huge_kernel_partial!(
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -2374,7 +2374,7 @@ CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_kernel_partial!(
     return
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_cooperative_kernel!(
+function unified_update_zx_noQ_SOC_huge_cooperative_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -2544,7 +2544,7 @@ CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_cooperative_kernel!(
     return
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_cooperative_kernel_partial!(::Val{UseCustom},
+function unified_update_zx_noQ_SOC_huge_cooperative_kernel_partial!(::Val{UseCustom},
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -2722,7 +2722,7 @@ CUDA.@fastmath function unified_update_zx_noQ_SOC_huge_cooperative_kernel_partia
     return
 end
 
-CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_segmented_kernel!(
+function prepare_unified_update_zx_noQ_SOC_huge_segmented_kernel!(
     huge_partial_sums::CuDeviceVector{Float64},
     huge_t_raw::CuDeviceVector{Float64},
     x::CuDeviceVector{Float64},
@@ -2775,7 +2775,7 @@ CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_segmented_kernel!
     return
 end
 
-CUDA.@fastmath function apply_unified_update_zx_noQ_SOC_huge_segmented_kernel!(
+function apply_unified_update_zx_noQ_SOC_huge_segmented_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -2853,7 +2853,7 @@ CUDA.@fastmath function apply_unified_update_zx_noQ_SOC_huge_segmented_kernel!(
     return
 end
 
-CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_segmented_kernel_partial!(::Val{UseCustom},
+function prepare_unified_update_zx_noQ_SOC_huge_segmented_kernel_partial!(::Val{UseCustom},
     huge_partial_sums::CuDeviceVector{Float64},
     huge_t_raw::CuDeviceVector{Float64},
     x::CuDeviceVector{Float64},
@@ -2914,7 +2914,7 @@ CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_segmented_kernel_
     return
 end
 
-CUDA.@fastmath function apply_unified_update_zx_noQ_SOC_huge_segmented_kernel_partial!(::Val{UseCustom},
+function apply_unified_update_zx_noQ_SOC_huge_segmented_kernel_partial!(::Val{UseCustom},
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -2998,7 +2998,7 @@ CUDA.@fastmath function apply_unified_update_zx_noQ_SOC_huge_segmented_kernel_pa
     return
 end
 
-CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_kernel!(
+function prepare_unified_update_zx_noQ_SOC_huge_kernel!(
     z_bar::CuDeviceVector{Float64},
     huge_partial_sums::CuDeviceVector{Float64},
     huge_t_raw::CuDeviceVector{Float64},
@@ -3055,7 +3055,7 @@ CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_kernel!(
     return
 end
 
-CUDA.@fastmath function finalize_unified_update_zx_noQ_SOC_huge_kernel!(
+function finalize_unified_update_zx_noQ_SOC_huge_kernel!(
     huge_proj_t::CuDeviceVector{Float64},
     huge_alpha::CuDeviceVector{Float64},
     huge_case::CuDeviceVector{Int32},
@@ -3111,7 +3111,7 @@ CUDA.@fastmath function finalize_unified_update_zx_noQ_SOC_huge_kernel!(
     return
 end
 
-CUDA.@fastmath function apply_unified_update_zx_noQ_SOC_huge_kernel!(
+function apply_unified_update_zx_noQ_SOC_huge_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -3187,7 +3187,7 @@ CUDA.@fastmath function apply_unified_update_zx_noQ_SOC_huge_kernel!(
     return
 end
 
-CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_kernel_partial!(::Val{UseCustom},
+function prepare_unified_update_zx_noQ_SOC_huge_kernel_partial!(::Val{UseCustom},
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     huge_partial_sums::CuDeviceVector{Float64},
@@ -3253,7 +3253,7 @@ CUDA.@fastmath function prepare_unified_update_zx_noQ_SOC_huge_kernel_partial!(:
     return
 end
 
-CUDA.@fastmath function finalize_unified_update_zx_noQ_SOC_huge_kernel_partial!(
+function finalize_unified_update_zx_noQ_SOC_huge_kernel_partial!(
     huge_proj_t::CuDeviceVector{Float64},
     huge_alpha::CuDeviceVector{Float64},
     huge_case::CuDeviceVector{Int32},
@@ -3309,7 +3309,7 @@ CUDA.@fastmath function finalize_unified_update_zx_noQ_SOC_huge_kernel_partial!(
     return
 end
 
-CUDA.@fastmath function apply_unified_update_zx_noQ_SOC_huge_kernel_partial!(
+function apply_unified_update_zx_noQ_SOC_huge_kernel_partial!(
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -3399,7 +3399,7 @@ end
     end
 end
 
-CUDA.@fastmath function unified_update_zx_noQ_SOC_size5_cooperative_kernel_partial!(::Val{UseCustom},
+function unified_update_zx_noQ_SOC_size5_cooperative_kernel_partial!(::Val{UseCustom},
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -3492,7 +3492,7 @@ end
     end
 end
 
-CUDA.@fastmath @inline function unified_update_zx_noQ_SOC_small_kernel!(
+@inline function unified_update_zx_noQ_SOC_small_kernel!(
     dx::CuDeviceVector{Float64},
     z_bar::CuDeviceVector{Float64},
     x_bar::CuDeviceVector{Float64},
@@ -3598,7 +3598,7 @@ CUDA.@fastmath @inline function unified_update_zx_noQ_SOC_small_kernel!(
     return
 end
 
-CUDA.@fastmath @inline function unified_update_zx_noQ_SOC_small_kernel_partial!(::Val{UseCustom},
+@inline function unified_update_zx_noQ_SOC_small_kernel_partial!(::Val{UseCustom},
     z_bar::CuDeviceVector{Float64},
     x_hat::CuDeviceVector{Float64},
     last_x::CuDeviceVector{Float64},
@@ -4131,7 +4131,7 @@ end
 end
 
 # Full version: computes all intermediate values
-CUDA.@fastmath @inline function unified_update_zxw_kernel_full!(::Val{UseCustom}, ::Val{IsDiag},
+@inline function unified_update_zxw_kernel_full!(::Val{UseCustom}, ::Val{IsDiag},
     y::CuDeviceVector{Float64},
     last_w::CuDeviceVector{Float64}, dw::CuDeviceVector{Float64}, dx::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32}, colValAT::CuDeviceVector{Int32}, nzValAT::CuDeviceVector{Float64},
@@ -4200,7 +4200,7 @@ CUDA.@fastmath @inline function unified_update_zxw_kernel_full!(::Val{UseCustom}
 end
 
 # Partial version: skips intermediate writes
-CUDA.@fastmath @inline function unified_update_zxw_kernel_partial!(::Val{UseCustom}, ::Val{IsDiag},
+@inline function unified_update_zxw_kernel_partial!(::Val{UseCustom}, ::Val{IsDiag},
     y::CuDeviceVector{Float64},
     last_w::CuDeviceVector{Float64}, dw::CuDeviceVector{Float64}, dx::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32}, colValAT::CuDeviceVector{Int32}, nzValAT::CuDeviceVector{Float64},
@@ -4265,7 +4265,7 @@ end
 # Unified tempv computation kernel
 # Computes: tempv = x_hat + sigma * (Qw - Qw_bar)
 # where Qw_bar can be computed inline (custom) or pre-computed (cuSPARSE)
-CUDA.@fastmath @inline function compute_tempv_unified_kernel!(::Val{UseCustom},
+@inline function compute_tempv_unified_kernel!(::Val{UseCustom},
     tempv::CuDeviceVector{Float64},
     rowPtrQ::CuDeviceVector{Int32},
     colValQ::CuDeviceVector{Int32},
@@ -4301,7 +4301,7 @@ end
 # Unified tempv computation kernel
 # Computes: tempv = x_hat + sigma * (Qw - Qw_bar)
 # where Qw_bar can be computed inline (custom) or pre-computed (cuSPARSE)
-CUDA.@fastmath @inline function compute_tempv_zxwy_unified_kernel!(::Val{UseCustom},
+@inline function compute_tempv_zxwy_unified_kernel!(::Val{UseCustom},
     Halpern_fact1::Float64, Halpern_fact2::Float64,
     last_Qw::CuDeviceVector{Float64},
     tempv::CuDeviceVector{Float64},
@@ -4351,7 +4351,7 @@ end
 # Key optimization: Fuses A*tempv SpMV with y update to reduce memory traffic
 #
 # Full version: computes all intermediate values
-CUDA.@fastmath @inline function unified_update_y_kernel_full!(::Val{UseCustom},
+@inline function unified_update_y_kernel_full!(::Val{UseCustom},
     dy::CuDeviceVector{Float64},
     rowPtrA::CuDeviceVector{Int32},
     colValA::CuDeviceVector{Int32},
@@ -4406,7 +4406,7 @@ CUDA.@fastmath @inline function unified_update_y_kernel_full!(::Val{UseCustom},
 end
 
 # Partial version: skips intermediate writes
-CUDA.@fastmath @inline function unified_update_y_kernel_partial!(::Val{UseCustom},
+@inline function unified_update_y_kernel_partial!(::Val{UseCustom},
     dy::CuDeviceVector{Float64},
     rowPtrA::CuDeviceVector{Int32},
     colValA::CuDeviceVector{Int32},
@@ -4455,7 +4455,7 @@ CUDA.@fastmath @inline function unified_update_y_kernel_partial!(::Val{UseCustom
     return
 end
 
-CUDA.@fastmath @inline function unified_update_y_SOC_size3_kernel_full!(
+@inline function unified_update_y_SOC_size3_kernel_full!(
     dy::CuDeviceVector{Float64},
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
@@ -4537,7 +4537,7 @@ CUDA.@fastmath @inline function unified_update_y_SOC_size3_kernel_full!(
     return
 end
 
-CUDA.@fastmath @inline function unified_update_y_SOC_size3_kernel_partial!(
+@inline function unified_update_y_SOC_size3_kernel_partial!(
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     last_y::CuDeviceVector{Float64},
@@ -4595,7 +4595,7 @@ CUDA.@fastmath @inline function unified_update_y_SOC_size3_kernel_partial!(
     return
 end
 
-CUDA.@fastmath function unified_update_y_SOC_large_kernel_full!(
+function unified_update_y_SOC_large_kernel_full!(
     dy::CuDeviceVector{Float64},
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
@@ -4685,7 +4685,7 @@ CUDA.@fastmath function unified_update_y_SOC_large_kernel_full!(
     return
 end
 
-CUDA.@fastmath function unified_update_y_SOC_large_kernel_partial!(
+function unified_update_y_SOC_large_kernel_partial!(
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     last_y::CuDeviceVector{Float64},
@@ -4767,7 +4767,7 @@ CUDA.@fastmath function unified_update_y_SOC_large_kernel_partial!(
     return
 end
 
-CUDA.@fastmath @inline function unified_update_y_SOC_kernel_full!(
+@inline function unified_update_y_SOC_kernel_full!(
     dy::CuDeviceVector{Float64},
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
@@ -4872,7 +4872,7 @@ end
     end
 end
 
-CUDA.@fastmath @inline function unified_update_y_SOC_kernel_partial!(
+@inline function unified_update_y_SOC_kernel_partial!(
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     last_y::CuDeviceVector{Float64},
@@ -4946,7 +4946,7 @@ CUDA.@fastmath @inline function unified_update_y_SOC_kernel_partial!(
     return
 end
 
-CUDA.@fastmath @inline function unified_update_y_SOC_small_kernel_full!(
+@inline function unified_update_y_SOC_small_kernel_full!(
     dy::CuDeviceVector{Float64},
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
@@ -5024,7 +5024,7 @@ CUDA.@fastmath @inline function unified_update_y_SOC_small_kernel_full!(
     return
 end
 
-CUDA.@fastmath @inline function unified_update_y_SOC_small_kernel_partial!(
+@inline function unified_update_y_SOC_small_kernel_partial!(
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     last_y::CuDeviceVector{Float64},
@@ -5098,7 +5098,7 @@ CUDA.@fastmath @inline function unified_update_y_SOC_small_kernel_partial!(
     return
 end
 
-CUDA.@fastmath function unified_update_y_SOC_size3_cooperative_kernel_partial!(
+function unified_update_y_SOC_size3_cooperative_kernel_partial!(
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     last_y::CuDeviceVector{Float64},
@@ -5158,7 +5158,7 @@ CUDA.@fastmath function unified_update_y_SOC_size3_cooperative_kernel_partial!(
     return
 end
 
-CUDA.@fastmath function unified_update_y_SOC_size4_cooperative_kernel_partial!(
+function unified_update_y_SOC_size4_cooperative_kernel_partial!(
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     last_y::CuDeviceVector{Float64},
@@ -5219,7 +5219,7 @@ CUDA.@fastmath function unified_update_y_SOC_size4_cooperative_kernel_partial!(
     return
 end
 
-CUDA.@fastmath function unified_update_y_SOC_size5_cooperative_kernel_partial!(
+function unified_update_y_SOC_size5_cooperative_kernel_partial!(
     y_bar::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     last_y::CuDeviceVector{Float64},
@@ -5381,7 +5381,7 @@ end
 # Key optimization: Fuses AT*y_bar SpMV with w2 update to reduce memory traffic
 #
 # Full version: computes all intermediate values
-CUDA.@fastmath @inline function unified_update_w2_kernel_full!(::Val{UseCustom}, ::Val{IsDiag},
+@inline function unified_update_w2_kernel_full!(::Val{UseCustom}, ::Val{IsDiag},
     dw::CuDeviceVector{Float64},
     ATdy::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32},
@@ -5442,7 +5442,7 @@ CUDA.@fastmath @inline function unified_update_w2_kernel_full!(::Val{UseCustom},
 end
 
 # Partial version: skips intermediate writes
-CUDA.@fastmath @inline function unified_update_w2_kernel_partial!(::Val{UseCustom}, ::Val{IsDiag},
+@inline function unified_update_w2_kernel_partial!(::Val{UseCustom}, ::Val{IsDiag},
     dw::CuDeviceVector{Float64},
     ATdy::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32},
@@ -5952,7 +5952,7 @@ end
 
 # Unified update_zx kernel - handles both custom inline AT*y and cuSPARSE
 # Full version: computes all intermediate values
-CUDA.@fastmath @inline function unified_update_zx_kernel_full!(::Val{UseCustom},
+@inline function unified_update_zx_kernel_full!(::Val{UseCustom},
     dx::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32},
     colValAT::CuDeviceVector{Int32},
@@ -6010,7 +6010,7 @@ CUDA.@fastmath @inline function unified_update_zx_kernel_full!(::Val{UseCustom},
 end
 
 # Partial version: skips intermediate writes
-CUDA.@fastmath @inline function unified_update_zx_kernel_partial!(::Val{UseCustom},
+@inline function unified_update_zx_kernel_partial!(::Val{UseCustom},
     dx::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32},
     colValAT::CuDeviceVector{Int32},
@@ -6062,7 +6062,7 @@ CUDA.@fastmath @inline function unified_update_zx_kernel_partial!(::Val{UseCusto
     return
 end
 
-CUDA.@fastmath @inline function unified_update_zx_noQ_linear_size3_kernel_partial!(::Val{UseCustom},
+@inline function unified_update_zx_noQ_linear_size3_kernel_partial!(::Val{UseCustom},
     dx::CuDeviceVector{Float64},
     rowPtrAT::CuDeviceVector{Int32},
     colValAT::CuDeviceVector{Int32},
@@ -6245,7 +6245,7 @@ function unified_update_y_noQ_gpu!(ws::HPRSOCP_workspace_gpu, Halpern_fact1::Flo
 end
 
 
-CUDA.@fastmath @inline function cust_compute_r2_kernel!(rowPtrQ::CuDeviceVector{Int32}, colValQ::CuDeviceVector{Int32}, nzValQ::CuDeviceVector{Float64},
+@inline function cust_compute_r2_kernel!(rowPtrQ::CuDeviceVector{Int32}, colValQ::CuDeviceVector{Int32}, nzValQ::CuDeviceVector{Float64},
     w_bar::CuDeviceVector{Float64}, Qw::CuDeviceVector{Float64},
     sigma::Float64, x_hat::CuDeviceVector{Float64},
     tempv::CuDeviceVector{Float64}, n::Int)
@@ -6464,7 +6464,7 @@ end
 
 ## kernels to compute residuals
 
-CUDA.@fastmath @inline function compute_Rd_kernel!(ATy::CuDeviceVector{Float64},
+@inline function compute_Rd_kernel!(ATy::CuDeviceVector{Float64},
     z::CuDeviceVector{Float64},
     c::CuDeviceVector{Float64},
     Qx::CuDeviceVector{Float64},
@@ -6490,7 +6490,7 @@ CUDA.@fastmath @inline function compute_Rd_kernel!(ATy::CuDeviceVector{Float64},
     return
 end
 
-CUDA.@fastmath @inline function compute_Rd_noQ_kernel!(ATy::CuDeviceVector{Float64},
+@inline function compute_Rd_noQ_kernel!(ATy::CuDeviceVector{Float64},
     z::CuDeviceVector{Float64},
     c::CuDeviceVector{Float64},
     Rd::CuDeviceVector{Float64},
@@ -6520,7 +6520,7 @@ function compute_Rd_gpu!(ws::HPRSOCP_workspace_gpu, qp::QP_info_gpu, sc::Scaling
     compute_Rd!(ws, qp, sc)
 end
 
-CUDA.@fastmath @inline function compute_Rp_kernel!(Rp::CuDeviceVector{Float64},
+@inline function compute_Rp_kernel!(Rp::CuDeviceVector{Float64},
     AL::CuDeviceVector{Float64},
     AU::CuDeviceVector{Float64},
     Ax::CuDeviceVector{Float64},
@@ -6539,7 +6539,7 @@ CUDA.@fastmath @inline function compute_Rp_kernel!(Rp::CuDeviceVector{Float64},
     return
 end
 
-CUDA.@fastmath @inline function compute_Rp_SOC_kernel!(Rp::CuDeviceVector{Float64},
+@inline function compute_Rp_SOC_kernel!(Rp::CuDeviceVector{Float64},
     soc_rhs::CuDeviceVector{Float64},
     Ax::CuDeviceVector{Float64},
     SOC_con_idx::CuDeviceVector{Int},
@@ -6593,7 +6593,7 @@ function compute_Rp_gpu!(ws::HPRSOCP_workspace_gpu, sc::Scaling_info_gpu, qp::QP
     compute_Rp!(ws, sc)
 end
 
-CUDA.@fastmath @inline function compute_err_lu_kernel!(dx::CuDeviceVector{Float64},
+@inline function compute_err_lu_kernel!(dx::CuDeviceVector{Float64},
     x::CuDeviceVector{Float64},
     l::CuDeviceVector{Float64},
     u::CuDeviceVector{Float64},
@@ -6614,7 +6614,7 @@ CUDA.@fastmath @inline function compute_err_lu_kernel!(dx::CuDeviceVector{Float6
     return
 end
 
-CUDA.@fastmath @inline function compute_err_soc_kernel!(dx::CuDeviceVector{Float64},
+@inline function compute_err_soc_kernel!(dx::CuDeviceVector{Float64},
     x::CuDeviceVector{Float64},
     SOC_var_idx::CuDeviceVector{Int},
     col_norm::CuDeviceVector{Float64},
@@ -6654,7 +6654,7 @@ CUDA.@fastmath @inline function compute_err_soc_kernel!(dx::CuDeviceVector{Float
     return
 end
 
-CUDA.@fastmath @inline function compute_soc_dual_support_violation_kernel!(
+@inline function compute_soc_dual_support_violation_kernel!(
     block_violation::CuDeviceVector{Float64},
     y::CuDeviceVector{Float64},
     SOC_con_idx::CuDeviceVector{I},
@@ -6674,7 +6674,7 @@ CUDA.@fastmath @inline function compute_soc_dual_support_violation_kernel!(
     return
 end
 
-CUDA.@fastmath @inline function axpby_kernel!(a::Float64, x::CuDeviceVector{Float64},
+@inline function axpby_kernel!(a::Float64, x::CuDeviceVector{Float64},
     b::Float64, y::CuDeviceVector{Float64},
     z::CuDeviceVector{Float64}, n::Int)
     i = threadIdx().x + (blockDim().x * (blockIdx().x - 0x1))
